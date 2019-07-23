@@ -1,27 +1,27 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules import Sequential
-
+from SameConv2d import Conv2d as SConv2d
 
 class ResidualModule(nn.Module):
     def __init__(self, in_channels, out_channels, **kwargs):
         super().__init__()
         self.input_dim = in_channels
         self.output_dim = out_channels
-        self.conv_skip = nn.Conv2d(self.input_dim, self.output_dim, kernel_size=1)
+        self.conv_skip = SConv2d(self.input_dim, self.output_dim, kernel_size=1)
         self.bottle_neck = Sequential(*[
             nn.BatchNorm2d(self.input_dim, momentum=0.9),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=self.input_dim, out_channels=self.output_dim // 2, kernel_size=1, bias=False),
+            SConv2d(in_channels=self.input_dim, out_channels=self.output_dim // 2, kernel_size=1, bias=False),
             # => bottle-neck
             nn.BatchNorm2d(self.output_dim // 2, momentum=0.9),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=self.output_dim // 2, out_channels=self.output_dim // 2, kernel_size=3, bias=False,
+            SConv2d(in_channels=self.output_dim // 2, out_channels=self.output_dim // 2, kernel_size=3, bias=False,
                       padding=1),
             # End of bottle-neck
             nn.BatchNorm2d(self.output_dim // 2, momentum=0.9),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=self.output_dim // 2, out_channels=self.output_dim, kernel_size=1, bias=False),
+            SConv2d(in_channels=self.output_dim // 2, out_channels=self.output_dim, kernel_size=1, bias=False),
         ])
 
     def forward(self, x):
@@ -54,6 +54,7 @@ class HourglassModule(nn.Module):
 
     def forward(self, x, **kwargs):
         up = self.res_list1(x)
+        shape = up.shape
         x = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=False)(x)
         x = self.res_list2(x)
         if self.depth != 1:
@@ -62,7 +63,7 @@ class HourglassModule(nn.Module):
             x = self.res_waist(x)
         # x = self.res_list3(x) # Maybe it is not necessary?
         x = self.out_branch(x)
-        x = F.interpolate(x, scale_factor=2, mode='nearest')
+        x = F.interpolate(x, size=shape[2:], mode='nearest')
         return x + up
 
 
@@ -84,7 +85,7 @@ class StackedHourglass(nn.Module):
         super().__init__()
         self.stacked_num = stacked_num
         self.in_branch = Sequential(*[
-            nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3),
+            SConv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(64, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
@@ -96,20 +97,20 @@ class StackedHourglass(nn.Module):
         ])
         self.hg_list = [HourglassModule(inter_channels, inter_channels, inter_channels) for _ in range(stacked_num)]
         self.drop_list = [nn.Dropout2d(dropout_rate, inplace=True) for _ in range(stacked_num)]
-        self.inter_heatmap = [nn.Conv2d(in_channels=inter_channels, out_channels=out_channels, kernel_size=1, stride=1)
+        self.inter_heatmap = [SConv2d(in_channels=inter_channels, out_channels=out_channels, kernel_size=1, stride=1)
                               for _ in
                               range(stacked_num)]
         self.inter_rechannel = [
-            nn.Conv2d(in_channels=out_channels, out_channels=inter_channels, kernel_size=1, stride=1)
+            SConv2d(in_channels=out_channels, out_channels=inter_channels, kernel_size=1, stride=1)
             for _ in
             range(stacked_num - 1)]
         self.linear_module = [Sequential(*[
-            nn.Conv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
+            SConv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
             nn.BatchNorm2d(inter_channels, momentum=0.9),
             nn.ReLU(inplace=True)
         ]) for _ in range(stacked_num)]
         self.post_linear_module = [Sequential(*[
-            nn.Conv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
+            SConv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
             # BatchNormalization(momentum=0.9, epsilon=1e-5),
             # Activation('relu')
         ]) for _ in range(stacked_num - 1)]
@@ -134,7 +135,7 @@ class StackedHourglass(nn.Module):
 def test_StackedHourglass():
     import torch
     batch = 10
-    input_Spec = torch.randn((batch, 3, 64, 64))
+    input_Spec = torch.randn((batch, 3, 224, 224))
     # f = ResidualModule(3, 64)
     # x = f(input_Spec)
     # f = HourglassModule(in_channels=3, out_channels=10, inter_channels=32, depth=4, num_modules=3)
