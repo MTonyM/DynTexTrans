@@ -31,8 +31,8 @@ class PrepareForDenseMotion(nn.Module):
         keypoint_source = kp_source['key_point']['mean']                                        # B K 2
         _, num_keypoint, _ = keypoint_source.shape
         # --- normal heatmap (k) ---
-        normalized_heatmap_driving = heatmap_drivin / heatmap_drivin.sum(axis=(2, 3), keepdim=True)  # B K H w
-        normalized_heatmap_source = heatmap_source / heatmap_source.sum(axis=(2, 3), keepdim=True)
+        normalized_heatmap_driving = heatmap_drivin / heatmap_drivin.sum(dim=(2, 3), keepdim=True)  # B K H w
+        normalized_heatmap_source = heatmap_source / heatmap_source.sum(dim=(2, 3), keepdim=True)
         diff_heatmap = normalized_heatmap_driving - normalized_heatmap_source
         diff_heatmap = diff_heatmap.reshape((batch_size, num_keypoint, h, w, 1))
         # --- background heatmap ---
@@ -52,12 +52,13 @@ class PrepareForDenseMotion(nn.Module):
         deformation_approx = origin_grid + keypoint_diff_ext
         # ---- warped feature   ----(deformed source image.)
         appearance_repeat = source_image.reshape((batch_size, 1, -1, h, w)).repeat(             # B 1 C h w
-            1, num_keypoint, 1, 1, 1).permute(0, 1, 3, 4, 2)                                    # B K+1 h w c
-        appearance_repeat = appearance_repeat.reshape((batch_size * num_keypoint, h, w, -1))
-        warped_image = F.grid_sample(appearance_repeat, deformation_approx, mode='nearest')     # B K+1 H W C
-        # TODO:...
+            1, num_keypoint, 1, 1, 1)                                                           # B K+1 C h w
+        appearance_repeat = appearance_repeat.reshape((batch_size * num_keypoint, -1, h, w))
+        warped_image = F.grid_sample(appearance_repeat, deformation_approx.reshape((batch_size*num_keypoint, h, w, 2))
+                                     , padding_mode='border') # B K+1 H W C
+        warped_image = warped_image.reshape((batch_size, num_keypoint, h, w, -1))
         inputs = torch.cat([warped_image, diff_heatmap, keypoint_diff_ext], dim=-1)             # B K+1 H W C+3
-        inputs.permute(0, 1, 4, 2, 3).reshape((batch_size, -1, h, w))                           # B (k+1)*(C+3) H W
+        inputs = inputs.permute(0, 1, 4, 2, 3).reshape((batch_size, -1, h, w))                  # B (k+1)*(C+3) H W
         # channel = [channel(warped image) + 1(heatmap) + 2(deformation grid)]* (num_keypoint+1)
         return inputs, keypoint_diff_ext
 
@@ -69,7 +70,7 @@ class DenseMotionEstimator(nn.Module):
     def __init__(self, opt):
         super(DenseMotionEstimator, self).__init__()
         self.data_generator = PrepareForDenseMotion(channel=opt.input_dim, num_kp=opt.num_keypoints)
-        self.hourglass = HourglassModule(in_channels=self.data_generator_mask.out_channel,
+        self.hourglass = HourglassModule(in_channels=self.data_generator.out_channel,
                                          out_channels=(opt.num_keypoints + 3),
                                          depth=4, num_modules=3)
         self.num_keypoints = opt.num_keypoints
