@@ -1,7 +1,9 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules import Sequential
+
 from SameConv2d import Conv2d as SConv2d
+
 
 class ResidualModule(nn.Module):
     def __init__(self, in_channels, out_channels, **kwargs):
@@ -17,7 +19,7 @@ class ResidualModule(nn.Module):
             nn.BatchNorm2d(self.output_dim // 2, momentum=0.9),
             nn.ReLU(inplace=True),
             SConv2d(in_channels=self.output_dim // 2, out_channels=self.output_dim // 2, kernel_size=3, bias=False,
-                      padding=1),
+                    padding=1),
             # End of bottle-neck
             nn.BatchNorm2d(self.output_dim // 2, momentum=0.9),
             nn.ReLU(inplace=True),
