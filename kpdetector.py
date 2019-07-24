@@ -8,6 +8,7 @@ from statutils import gaussian2kp
 class KeyPointDetector(nn.Module):
     """
     Chap3.2 Unsupervised Keypoint Detection
+    forward :return {'key_point': kp {'mean': B H W 2, 'var': B H W 2x2 }, 'heatmap': heatmap}
     """
 
     def __init__(self, opt):
