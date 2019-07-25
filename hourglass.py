@@ -104,25 +104,21 @@ class StackedHourglass(nn.Module):
             ResidualModule(in_channels=128, out_channels=128),
             ResidualModule(in_channels=128, out_channels=inter_channels)
         ])
-        self.hg_list = [HourglassModule(inter_channels, inter_channels, inter_channels) for _ in range(stacked_num)]
-        self.drop_list = [nn.Dropout2d(dropout_rate, inplace=True) for _ in range(stacked_num)]
-        self.inter_heatmap = [SConv2d(in_channels=inter_channels, out_channels=out_channels, kernel_size=1, stride=1)
-                              for _ in
-                              range(stacked_num)]
-        self.inter_rechannel = [
-            SConv2d(in_channels=out_channels, out_channels=inter_channels, kernel_size=1, stride=1)
-            for _ in
-            range(stacked_num - 1)]
-        self.linear_module = [Sequential(*[
+        self.hg_list = nn.ModuleList([HourglassModule(inter_channels, inter_channels, inter_channels) for _ in range(stacked_num)])
+        self.drop_list = nn.ModuleList([nn.Dropout2d(dropout_rate, inplace=True) for _ in range(stacked_num)])
+        self.inter_heatmap = nn.ModuleList([SConv2d(in_channels=inter_channels, out_channels=out_channels, kernel_size=1, stride=1) for _ in range(stacked_num)])
+        self.inter_rechannel = nn.ModuleList([
+            SConv2d(in_channels=out_channels, out_channels=inter_channels, kernel_size=1, stride=1) for _ in range(stacked_num - 1)])
+        self.linear_module = nn.ModuleList([Sequential(*[
             SConv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
             nn.BatchNorm2d(inter_channels, momentum=0.9),
             nn.ReLU(inplace=True)
-        ]) for _ in range(stacked_num)]
-        self.post_linear_module = [Sequential(*[
+        ]) for _ in range(stacked_num)])
+        self.post_linear_module = nn.ModuleList([Sequential(*[
             SConv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
             # BatchNormalization(momentum=0.9, epsilon=1e-5),
             # Activation('relu')
-        ]) for _ in range(stacked_num - 1)]
+        ]) for _ in range(stacked_num - 1)])
 
     def forward(self, x, **kwargs):
         x_downsample = self.in_branch(x)

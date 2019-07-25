@@ -13,17 +13,26 @@ class KeyPointDetector(nn.Module):
 
     def __init__(self, opt):
         super(KeyPointDetector, self).__init__()
-        self.heatmap_predictor = StackedHourglass(opt.input_dim, opt.num_keypoints, opt.inter_channels, opt.num_stack,
+        self.heatmap_predictor = StackedHourglass(opt.input_dim * 2, opt.num_keypoints * 2, opt.inter_channels,
+                                                  opt.num_stack,
                                                   opt.ratio_drop)
         self.temperature = opt.temperature
+        self.opt = opt
 
-    def forward(self, x):
-        heatmap = self.heatmap_predictor(x)[-1]
-        heatmap /= self.temperature
-        heatmap = F.softmax(heatmap.view((*heatmap.shape[:2], -1)), dim=-1).view(heatmap.shape)
+    def kp_gen(self, heatmap):
+        heatmap = F.softmax(heatmap.reshape((*heatmap.shape[:2], -1)), dim=-1).reshape(heatmap.shape)
+        heatmap = heatmap / self.temperature
         kp = gaussian2kp(heatmap)
         return {'key_point': kp,
                 'heatmap': heatmap}
+
+    def forward(self, x):
+        heatmap = self.heatmap_predictor(x)[-1]
+        source_heatmap = heatmap[:, :self.opt.num_keypoints, :, :]
+        target_heatmap = heatmap[:, self.opt.num_keypoints:, :, :]
+        source_kp = self.kp_gen(source_heatmap)
+        target_kp = self.kp_gen(target_heatmap)
+        return source_kp, target_kp
 
 
 if __name__ == '__main__':
@@ -32,5 +41,5 @@ if __name__ == '__main__':
 
     opt = TrainOptions().parse()
     kpd = KeyPointDetector(opt)
-    x = torch.randn((4, 3, 64, 64))
-    kp, heatmap = kpd(x)
+    x = torch.randn((4, 6, 64, 64))
+    kp_s, kp_t = kpd(x)

@@ -24,6 +24,8 @@ class TrainOptions(Options):
                                  help='path of the training images')
         self.parser.add_argument('--input_dim', type=int, default=3,
                                  help='input dimensions.')
+        self.parser.add_argument('--num_workers', type=int, default=8,
+                                 help='# workers.')
 
         # train related
         self.parser.add_argument('--num_keypoints', type=int, default=10,

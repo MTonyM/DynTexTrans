@@ -41,8 +41,9 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.num_blocks = num_blocks
         channel_list = [in_channels] + [inter_channels] * num_blocks
-        self.blocks = [DownSampleSConv_BN_Relu2d(in_channels=channel_list[i], out_channels=channel_list[i + 1])
-                       for i in range(num_blocks)]
+        self.blocks = nn.ModuleList(
+            [DownSampleSConv_BN_Relu2d(in_channels=channel_list[i], out_channels=channel_list[i + 1]) for i in
+             range(num_blocks)])
 
     def forward(self, x):
         out_list = [x]
@@ -59,7 +60,7 @@ class Decoder(nn.Module):
     def __init__(self, inter_channels, out_channels, num_blocks=3):
         super(Decoder, self).__init__()
         self.num_blocks = num_blocks
-        self.blocks = []
+        self.blocks = nn.ModuleList()
         for i in range(num_blocks):
             in_chn = inter_channels
             out_chn = inter_channels
@@ -145,35 +146,79 @@ def done():
     from kpdetector import KeyPointDetector
     from options import TrainOptions
     from losses import generator_loss, discriminator_loss
+    from dataloader import DynTexTrainDataset
+    from torch.utils.data import DataLoader
+    from torch.optim.lr_scheduler import MultiStepLR
+    from tqdm import tqdm
+
+    train_params = {'lr': 0.001, 'epoch_milestones': (100, 1000)}
+    loss_weight = {'reconstruction_def': 5.0, 'reconstruction': 10.0, 'generator_gan': 1.0, 'discriminator_gan': 1.0}
+
     opt = TrainOptions().parse()
-    kpd = KeyPointDetector(opt)
-    gen = Generator(opt)
-    dis_ = Discriminator(opt)
+    kpd = KeyPointDetector(opt).train()
+    gen = Generator(opt).train()
+    dis_ = Discriminator(opt).train()
+    start_epoch = 0
 
-    batch = 10
-    source_tensor = torch.rand((batch, 3, 64, 64), requires_grad=True)
-    print(source_tensor.is_leaf)
-    source_tensor = source_tensor * 255
-    print(source_tensor.is_leaf)
-    drivin_tensor = torch.rand((batch, 3, 64, 64), requires_grad=True) * 255
-    source_kp = kpd(source_tensor)
-    drivin_kp = kpd(drivin_tensor)
-    gened = gen(source_tensor, drivin_kp, source_kp)
-    dis_feat = dis_(gened)
-    dis_real = dis_(drivin_tensor)
-    # from utils import make_dot
-    # g = make_dot(dis_feat[-1])
-    # g.view()
-    loss_weight = {'reconstruction_def': 0.01, 'reconstruction': 10, 'generator_gan': 1.0, 'discriminator_gan': 1.0}
-    loss_g = generator_loss(dis_feat, dis_real, loss_weights=loss_weight)
-    loss_g = torch.sum(torch.cat(list(loss_g.values())))
-    loss_g.backward(retain_graph=True)
+    optimizer_generator = torch.optim.Adam(gen.parameters(), lr=train_params['lr'], betas=(0.5, 0.999))
+    optimizer_discriminator = torch.optim.Adam(dis_.parameters(), lr=train_params['lr'], betas=(0.5, 0.999))
+    optimizer_kp_detector = torch.optim.Adam(kpd.parameters(), lr=train_params['lr'], betas=(0.5, 0.999))
+    scheduler_generator = MultiStepLR(optimizer_generator, train_params['epoch_milestones'], gamma=0.1,
+                                      last_epoch=start_epoch - 1)
+    scheduler_discriminator = MultiStepLR(optimizer_discriminator, train_params['epoch_milestones'], gamma=0.1,
+                                          last_epoch=start_epoch - 1)
+    scheduler_kp_detector = MultiStepLR(optimizer_kp_detector, train_params['epoch_milestones'], gamma=0.1,
+                                        last_epoch=start_epoch - 1)
 
-    loss_d = discriminator_loss(dis_feat, dis_real, weight=loss_weight['discriminator_gan'])
-    loss_d = torch.sum(torch.cat(list(loss_d.values())))
-    loss_d.backward()
+    # batch = 10
+    # side = 224
+    # source_tensor = torch.rand((batch, opt.input_dim, side, side), requires_grad=True) * 255
+    # drivin_tensor = torch.rand((batch, opt.input_dim, side, side), requires_grad=True) * 255
 
-    print(loss_g, loss_d)
+    data_root = '/Users/tony/PycharmProjects/DynTexTrans/data/processed'
+    dataset = DynTexTrainDataset(data_root, 'flame')
+    dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers)
+
+    for epoch in range(start_epoch, start_epoch + 100):
+        pbar = tqdm(total=len(dataloader), desc="=> training epoch # {}".format(epoch), ascii=True, ncols=120)
+        pbar.set_postfix({'L_G': 'N/A', 'L_D': 'N/A'})
+        for source_tensor, drivin_tensor in dataloader:
+            source_tensor = torch.Tensor.float(source_tensor).requires_grad_()
+            drivin_tensor = torch.Tensor.float(drivin_tensor).requires_grad_()
+
+            source_kp, drivin_kp = kpd(torch.cat([source_tensor, drivin_tensor], dim=1))
+            gened = gen(source_tensor, drivin_kp, source_kp)
+            dis_feat = dis_(gened)
+            dis_real = dis_(drivin_tensor)
+            # from utils import make_dot
+            # g = make_dot(dis_feat[-1])
+            # g.view()
+            loss_g = generator_loss(dis_feat, dis_real, loss_weights=loss_weight)
+            loss_g = torch.mean(torch.cat(list(loss_g.values())), dim=0)
+            loss_g.backward(retain_graph=True)
+
+            optimizer_generator.step()
+            optimizer_generator.zero_grad()
+            optimizer_discriminator.zero_grad()
+            # optimizer_kp_detector
+
+            loss_d = discriminator_loss(dis_feat, dis_real, weight=loss_weight['discriminator_gan'])
+            loss_d = torch.mean(torch.cat(list(loss_d.values())), dim=0)
+            loss_d.backward()
+
+            optimizer_discriminator.step()
+            optimizer_discriminator.zero_grad()
+
+            optimizer_kp_detector.step()
+            optimizer_kp_detector.zero_grad()
+            # print(float(loss_g), float(loss_d))
+            loss_dict = {'L_G': '{:.5f}'.format(float(loss_g)), 'L_D': '{:.5f}'.format(float(loss_d))}
+            pbar.set_postfix(loss_dict)
+            pbar.update(1)
+        scheduler_discriminator.step(epoch)
+        scheduler_generator.step(epoch)
+        scheduler_kp_detector.step(epoch)
+        pbar.close()
 
 
 if __name__ == '__main__':

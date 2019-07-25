@@ -22,7 +22,7 @@ def discriminator_loss(generated_map, real_map, weight):
     #  least-square GAN
     predict = generated_map[-1]
     gt = real_map[-1]
-    print(predict.shape, gt.shape)
+    # print(predict.shape, gt.shape)
     score = (1 - gt) ** 2 + predict ** 2
     return {'L_D': weight * mean_batch(score)}
 
