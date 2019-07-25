@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from SameConv2d import Conv2d as SConv2d
 from dense_motion import DenseMotionEstimator
+from hourglass import ResidualModule
 
 
 class SConv_BN_Relu2d(nn.Module):
@@ -36,7 +37,7 @@ class Encoder(nn.Module):
     2btest
     """
 
-    def __init__(self, in_channels, inter_channels, num_blocks=3):
+    def __init__(self, in_channels, inter_channels, block_expasion=4, max_channels=256, num_blocks=3):
         super(Encoder, self).__init__()
         self.num_blocks = num_blocks
         channel_list = [in_channels] + [inter_channels] * num_blocks
@@ -64,9 +65,11 @@ class Decoder(nn.Module):
             out_chn = inter_channels
             if i != 0:
                 in_chn *= 2
-            if i == num_blocks-1:
+            if i == num_blocks - 1:
                 out_chn = out_channels
             self.blocks.append(SConv_BN_Relu2d(in_chn, out_chn))
+        self.refine = SConv2d(in_channels=out_channels * 2, out_channels=out_channels, kernel_size=1, stride=1,
+                              padding=0)
 
     def deform_feature(self, feature, flow):
         flow = F.interpolate(flow.permute(0, 3, 1, 2), size=feature.shape[2:], mode='nearest')
@@ -80,17 +83,18 @@ class Decoder(nn.Module):
         :return:
         """
         inter = self.deform_feature(skips[-1], guidance)
-        # print(inter.shape, '------')
         for i in range(self.num_blocks):
-            # print(i, inter.shape)
             if i == 0:
                 inter = self.blocks[i](inter)
                 continue
-            skip = F.interpolate(skips[-1 - i], size=inter.shape[2:], mode='nearest')
-            skip = self.deform_feature(skip, guidance)
+            inter = F.interpolate(inter, size=skips[-1 - i].shape[2:], mode='nearest')
+            skip = self.deform_feature(skips[-1 - i], guidance)
             inp_tmp = torch.cat([inter, skip], dim=1)
             inter = self.blocks[i](inp_tmp)
-        return inter
+        res = F.interpolate(inter, skips[0].shape[2:], mode='nearest')
+        target_def = self.deform_feature(skips[0], guidance)
+        res = torch.cat([res, target_def], dim=1)
+        return res
 
 
 class Generator(nn.Module):
@@ -103,16 +107,19 @@ class Generator(nn.Module):
         # data preparation
         self.dense_motion_estimator = DenseMotionEstimator(opt)
         # encoder
-        self.decoder = Decoder(256, 3)
+        self.decoder = Decoder(256, 64)
         self.encoder = Encoder(3, 256)
         assert self.decoder.num_blocks == self.encoder.num_blocks, 'The number of blocks incompliant'
-        # decoder
+        self.refinement = nn.Sequential()
+        self.refinement.add_module('res_last', ResidualModule(64 + opt.input_dim, 32))
+        self.refinement.add_module('linear_last', SConv2d(32, opt.input_dim, kernel_size=1, stride=1, padding=0))
 
     def forward(self, source_image, kp_driving, kp_source):
         # encode
         dense_flow = self.dense_motion_estimator(source_image, kp_driving, kp_source)
         skips = self.encoder(source_image)
         result = self.decoder(skips, dense_flow)
+        result = self.refinement(result)
         return result
 
 
@@ -137,23 +144,37 @@ class Discriminator(nn.Module):
 def done():
     from kpdetector import KeyPointDetector
     from options import TrainOptions
+    from losses import generator_loss, discriminator_loss
     opt = TrainOptions().parse()
     kpd = KeyPointDetector(opt)
     gen = Generator(opt)
     dis_ = Discriminator(opt)
 
     batch = 10
-    source_tensor = torch.randn((batch, 3, 64, 64))
-    drivin_tensor = torch.randn((batch, 3, 64, 64))
-    print(source_tensor.shape)
-    print(drivin_tensor.shape)
+    source_tensor = torch.rand((batch, 3, 64, 64), requires_grad=True)
+    print(source_tensor.is_leaf)
+    source_tensor = source_tensor * 255
+    print(source_tensor.is_leaf)
+    drivin_tensor = torch.rand((batch, 3, 64, 64), requires_grad=True) * 255
     source_kp = kpd(source_tensor)
     drivin_kp = kpd(drivin_tensor)
     gened = gen(source_tensor, drivin_kp, source_kp)
     dis_feat = dis_(gened)
-    print('-> disc feature.!')
-    for i in range(len(dis_feat)):
-        print(dis_feat[i].shape)
+    dis_real = dis_(drivin_tensor)
+    # from utils import make_dot
+    # g = make_dot(dis_feat[-1])
+    # g.view()
+    loss_weight = {'reconstruction_def': 0.01, 'reconstruction': 10, 'generator_gan': 1.0, 'discriminator_gan': 1.0}
+    loss_g = generator_loss(dis_feat, dis_real, loss_weights=loss_weight)
+    loss_g = torch.sum(torch.cat(list(loss_g.values())))
+    loss_g.backward(retain_graph=True)
+
+    loss_d = discriminator_loss(dis_feat, dis_real, weight=loss_weight['discriminator_gan'])
+    loss_d = torch.sum(torch.cat(list(loss_d.values())))
+    loss_d.backward()
+
+    print(loss_g, loss_d)
+
 
 if __name__ == '__main__':
     done()

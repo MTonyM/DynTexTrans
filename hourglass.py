@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules import Sequential
-
+import math
 from SameConv2d import Conv2d as SConv2d
 
 
@@ -25,6 +25,13 @@ class ResidualModule(nn.Module):
             nn.ReLU(inplace=True),
             SConv2d(in_channels=self.output_dim // 2, out_channels=self.output_dim, kernel_size=1, bias=False),
         ])
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
 
     def forward(self, x):
         if self.input_dim == self.output_dim:
@@ -35,7 +42,7 @@ class ResidualModule(nn.Module):
 
 
 class HourglassModule(nn.Module):
-    def __init__(self, in_channels=256, out_channels=None, inter_channels=256, depth=4, num_modules=1):
+    def __init__(self, in_channels=256, out_channels=None, inter_channels=256, depth=3, num_modules=1):
         super().__init__()
         if out_channels is None:
             out_channels = inter_channels
@@ -137,14 +144,14 @@ class StackedHourglass(nn.Module):
 def test_StackedHourglass():
     import torch
     batch = 10
-    input_Spec = torch.randn((batch, 3, 224, 224))
+    input_Spec = torch.randn((batch, 3, 64, 64))
     # f = ResidualModule(3, 64)
     # x = f(input_Spec)
     # f = HourglassModule(in_channels=3, out_channels=10, inter_channels=32, depth=4, num_modules=3)
     # x = f(input_Spec)
     # print(f)
     # print(x.shape)
-    f = StackedHourglass(3, 10, 256, 4, 0.2)
+    f = StackedHourglass(3, 10, 64, 4, 0.2)
     x = f(input_Spec)
 
 
