@@ -28,7 +28,7 @@ class TrainOptions(Options):
                                  help='# workers.')
 
         # train related
-        self.parser.add_argument('--num_keypoints', type=int, default=10,
+        self.parser.add_argument('--num_keypoints', type=int, default=20,
                                  help='number of keypoints extracted from images/video frame')
 
         self.parser.add_argument('--outer_iter', type=int, default=50,
@@ -36,7 +36,7 @@ class TrainOptions(Options):
         self.parser.add_argument('--epoch', type=int, default=5, help='number of epoch for each outer iteration')
         self.parser.add_argument('--progressive', type=int, default=1,
                                  help='1 for using progressive training, 0 for using normal training')
-        self.parser.add_argument('--batchsize', type=int, default=8,
+        self.parser.add_argument('--batchsize', type=int, default=16,
                                  help='batchsize for level3. level3 use batchsize, level2 use 2*batchsize, level1 use 4*batchsize')
         self.parser.add_argument('--datasize', type=int, default=12800, help='number of sampled data for each epoch')
         self.parser.add_argument('--datarange', type=int, default=708,
@@ -49,10 +49,10 @@ class TrainOptions(Options):
         self.parser.add_argument('--save_model_name', type=str, default='../save/tet.ckpt',
                                  help='specify the model name to save')
         self.parser.add_argument('--gpu', type=int, default=0, help='gpu, 0 for cpu, 1 for gpu')
-        self.parser.add_argument('--inter_channels', type=int, default=256,
+        self.parser.add_argument('--inter_channels', type=int, default=128,
                                  help='number of channels in hourglass res block')
-        self.parser.add_argument('--num_stack', type=int, default=3, help='number of stacks of stacked hourglasses')
-        self.parser.add_argument('--ratio_drop', type=float, default=0.2,
+        self.parser.add_argument('--num_stack', type=int, default=2, help='number of stacks of stacked hourglasses')
+        self.parser.add_argument('--ratio_drop', type=float, default=0.8,
                                  help='dropout rate of resblock in one hg reslist1.')
-        self.parser.add_argument('--temperature', type=float, default=0.2,
+        self.parser.add_argument('--temperature', type=float, default=0.1,
                                  help='temperature.')

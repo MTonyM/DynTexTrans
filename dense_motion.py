@@ -55,7 +55,7 @@ class PrepareForDenseMotion(nn.Module):
             1, num_keypoint, 1, 1, 1)                                                           # B K+1 C h w
         appearance_repeat = appearance_repeat.reshape((batch_size * num_keypoint, -1, h, w))
         warped_image = F.grid_sample(appearance_repeat, deformation_approx.reshape((batch_size*num_keypoint, h, w, 2))
-                                     , padding_mode='border') # B K+1 H W C
+                                     , padding_mode='reflection')                                   # B K+1 H W C
         warped_image = warped_image.reshape((batch_size, num_keypoint, h, w, -1))
         inputs = torch.cat([warped_image, diff_heatmap, keypoint_diff_ext], dim=-1)             # B K+1 H W C+3
         inputs = inputs.permute(0, 1, 4, 2, 3).reshape((batch_size, -1, h, w))                  # B (k+1)*(C+3) H W

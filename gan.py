@@ -12,6 +12,7 @@ class SConv_BN_Relu2d(nn.Module):
         super(SConv_BN_Relu2d, self).__init__()
         self.conv = SConv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
         self.bn = nn.BatchNorm2d(out_channels)
+        self.out_channels = out_channels
 
     def forward(self, x):
         x = self.conv(x)
@@ -73,8 +74,9 @@ class Decoder(nn.Module):
                               padding=0)
 
     def deform_feature(self, feature, flow):
+        # print(feature.shape, flow.shape)
         flow = F.interpolate(flow.permute(0, 3, 1, 2), size=feature.shape[2:], mode='nearest')
-        feature = F.grid_sample(feature, flow.permute(0, 2, 3, 1), padding_mode='border')
+        feature = F.grid_sample(feature, flow.permute(0, 2, 3, 1), padding_mode='reflection')
         return feature
 
     def forward(self, skips, guidance):
@@ -92,10 +94,13 @@ class Decoder(nn.Module):
             skip = self.deform_feature(skips[-1 - i], guidance)
             inp_tmp = torch.cat([inter, skip], dim=1)
             inter = self.blocks[i](inp_tmp)
+            # print(self.blocks[i].out_channels)
         res = F.interpolate(inter, skips[0].shape[2:], mode='nearest')
         target_def = self.deform_feature(skips[0], guidance)
+        # print(res.shape, target_def.shape)
         res = torch.cat([res, target_def], dim=1)
-        return res
+        self.refine(res)
+        return target_def
 
 
 class Generator(nn.Module):
@@ -108,17 +113,20 @@ class Generator(nn.Module):
         # data preparation
         self.dense_motion_estimator = DenseMotionEstimator(opt)
         # encoder
-        self.decoder = Decoder(256, 64)
-        self.encoder = Encoder(3, 256)
+        self.pre_decoder = SConv2d(in_channels=opt.input_dim, out_channels=opt.inter_channels // 2, kernel_size=1,
+                                   stride=1, padding=0)
+        self.decoder = Decoder(opt.inter_channels, opt.inter_channels // 2)
+        self.encoder = Encoder(opt.inter_channels // 2, opt.inter_channels)
         assert self.decoder.num_blocks == self.encoder.num_blocks, 'The number of blocks incompliant'
         self.refinement = nn.Sequential()
-        self.refinement.add_module('res_last', ResidualModule(64 + opt.input_dim, 32))
-        self.refinement.add_module('linear_last', SConv2d(32, opt.input_dim, kernel_size=1, stride=1, padding=0))
+        self.refinement.add_module('res_last', ResidualModule(opt.inter_channels // 2, opt.inter_channels // 4))
+        self.refinement.add_module('linear_last',
+                                   SConv2d(opt.inter_channels // 4, opt.input_dim, kernel_size=1, stride=1, padding=0))
 
     def forward(self, source_image, kp_driving, kp_source):
         # encode
         dense_flow = self.dense_motion_estimator(source_image, kp_driving, kp_source)
-        skips = self.encoder(source_image)
+        skips = self.encoder(self.pre_decoder(source_image))
         result = self.decoder(skips, dense_flow)
         result = self.refinement(result)
         return result
@@ -131,7 +139,7 @@ class Discriminator(nn.Module):
 
     def __init__(self, opt):
         super(Discriminator, self).__init__()
-        self.encoder = Encoder(in_channels=3, inter_channels=256)
+        self.encoder = Encoder(in_channels=3, inter_channels=opt.inter_channels)
 
     def forward(self, x):
         """
@@ -150,11 +158,15 @@ def done():
     from torch.utils.data import DataLoader
     from torch.optim.lr_scheduler import MultiStepLR
     from tqdm import tqdm
-
-    train_params = {'lr': 0.001, 'epoch_milestones': (100, 1000)}
-    loss_weight = {'reconstruction_def': 5.0, 'reconstruction': 10.0, 'generator_gan': 1.0, 'discriminator_gan': 1.0}
-
+    from pprint import pprint
+    import cv2
     opt = TrainOptions().parse()
+    print('---- training params. ----')
+    train_params = {'lr': 0.00001, 'epoch_milestones': (100, 500)}
+    loss_weight = {'reconstruction_def': 1.0, 'reconstruction': 10.0, 'generator_gan': 1.0, 'discriminator_gan': 1.0}
+    pprint(train_params)
+    pprint(loss_weight)
+
     kpd = KeyPointDetector(opt).train()
     gen = Generator(opt).train()
     dis_ = Discriminator(opt).train()
@@ -170,19 +182,14 @@ def done():
     scheduler_kp_detector = MultiStepLR(optimizer_kp_detector, train_params['epoch_milestones'], gamma=0.1,
                                         last_epoch=start_epoch - 1)
 
-    # batch = 10
-    # side = 224
-    # source_tensor = torch.rand((batch, opt.input_dim, side, side), requires_grad=True) * 255
-    # drivin_tensor = torch.rand((batch, opt.input_dim, side, side), requires_grad=True) * 255
-
     data_root = '/Users/tony/PycharmProjects/DynTexTrans/data/processed'
     dataset = DynTexTrainDataset(data_root, 'flame')
-    dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers)
+    dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
 
-    for epoch in range(start_epoch, start_epoch + 100):
+    for epoch in range(start_epoch, start_epoch + 700):
         pbar = tqdm(total=len(dataloader), desc="=> training epoch # {}".format(epoch), ascii=True, ncols=120)
         pbar.set_postfix({'L_G': 'N/A', 'L_D': 'N/A'})
-        for source_tensor, drivin_tensor in dataloader:
+        for batch, (source_tensor, drivin_tensor) in enumerate(dataloader):
             source_tensor = torch.Tensor.float(source_tensor).requires_grad_()
             drivin_tensor = torch.Tensor.float(drivin_tensor).requires_grad_()
 
@@ -190,9 +197,7 @@ def done():
             gened = gen(source_tensor, drivin_kp, source_kp)
             dis_feat = dis_(gened)
             dis_real = dis_(drivin_tensor)
-            # from utils import make_dot
-            # g = make_dot(dis_feat[-1])
-            # g.view()
+
             loss_g = generator_loss(dis_feat, dis_real, loss_weights=loss_weight)
             loss_g = torch.mean(torch.cat(list(loss_g.values())), dim=0)
             loss_g.backward(retain_graph=True)
@@ -200,7 +205,6 @@ def done():
             optimizer_generator.step()
             optimizer_generator.zero_grad()
             optimizer_discriminator.zero_grad()
-            # optimizer_kp_detector
 
             loss_d = discriminator_loss(dis_feat, dis_real, weight=loss_weight['discriminator_gan'])
             loss_d = torch.mean(torch.cat(list(loss_d.values())), dim=0)
@@ -211,7 +215,15 @@ def done():
 
             optimizer_kp_detector.step()
             optimizer_kp_detector.zero_grad()
-            # print(float(loss_g), float(loss_d))
+            # vis
+            ge = (gened.detach().numpy()[0].transpose([1, 2, 0]) * 255).astype('uint8')
+            # gt = (drivin_tensor.detach().numpy()[0].transpose([1, 2, 0]) * 255).astype('uint8')
+            if batch == len(dataloader) - 2:
+                root = '/Users/tony/PycharmProjects/DynTexTrans/data/result/'
+                cv2.imwrite(root + '{}_{}_ge.png'.format(epoch, batch), ge)
+                # cv2.imwrite(root + '{}_{}_gt.png'.format(epoch, batch), gt)
+            # vis
+
             loss_dict = {'L_G': '{:.5f}'.format(float(loss_g)), 'L_D': '{:.5f}'.format(float(loss_d))}
             pbar.set_postfix(loss_dict)
             pbar.update(1)

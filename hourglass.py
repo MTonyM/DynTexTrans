@@ -1,7 +1,9 @@
+import math
+
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules import Sequential
-import math
+
 from SameConv2d import Conv2d as SConv2d
 
 
@@ -42,7 +44,7 @@ class ResidualModule(nn.Module):
 
 
 class HourglassModule(nn.Module):
-    def __init__(self, in_channels=256, out_channels=None, inter_channels=256, depth=3, num_modules=1):
+    def __init__(self, in_channels=256, out_channels=None, inter_channels=256, depth=5, num_modules=3):
         super().__init__()
         if out_channels is None:
             out_channels = inter_channels
@@ -94,7 +96,7 @@ class StackedHourglass(nn.Module):
         super().__init__()
         self.stacked_num = stacked_num
         self.in_branch = Sequential(*[
-            SConv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3),
+            SConv2d(in_channels=in_channels, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
@@ -104,11 +106,15 @@ class StackedHourglass(nn.Module):
             ResidualModule(in_channels=128, out_channels=128),
             ResidualModule(in_channels=128, out_channels=inter_channels)
         ])
-        self.hg_list = nn.ModuleList([HourglassModule(inter_channels, inter_channels, inter_channels) for _ in range(stacked_num)])
+        self.hg_list = nn.ModuleList(
+            [HourglassModule(inter_channels, inter_channels, inter_channels) for _ in range(stacked_num)])
         self.drop_list = nn.ModuleList([nn.Dropout2d(dropout_rate, inplace=True) for _ in range(stacked_num)])
-        self.inter_heatmap = nn.ModuleList([SConv2d(in_channels=inter_channels, out_channels=out_channels, kernel_size=1, stride=1) for _ in range(stacked_num)])
+        self.inter_heatmap = nn.ModuleList(
+            [SConv2d(in_channels=inter_channels, out_channels=out_channels, kernel_size=1, stride=1) for _ in
+             range(stacked_num)])
         self.inter_rechannel = nn.ModuleList([
-            SConv2d(in_channels=out_channels, out_channels=inter_channels, kernel_size=1, stride=1) for _ in range(stacked_num - 1)])
+            SConv2d(in_channels=out_channels, out_channels=inter_channels, kernel_size=1, stride=1) for _ in
+            range(stacked_num - 1)])
         self.linear_module = nn.ModuleList([Sequential(*[
             SConv2d(in_channels=inter_channels, out_channels=inter_channels, kernel_size=1, stride=1),
             nn.BatchNorm2d(inter_channels, momentum=0.9),
