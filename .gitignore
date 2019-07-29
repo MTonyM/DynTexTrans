@@ -251,5 +251,6 @@ pyvenv.cfg
 pip-selfcheck.json
 
 # End of https://www.gitignore.io/api/python,macos,venv,jetbrains
-data/**/*.png
+data/result/*.png
+data/raw/**/*.png
 data/*.py
