@@ -47,21 +47,20 @@ def train():
                 nnf = nnf[:, :2, :, :] * nnf[:, 2:, :, :]  # mask via the confidence
             # --- synthesis ---
             target_predict = syner(source_t, nnf)
-            target_t1_predict = syner(source_t1, nnf)
+            # target_t1_predict = syner(source_t1, nnf)
 
-            loss = tnf.mse_loss(target_predict, target_t) + gamma * tnf.mse_loss(target_t1_predict, target_t1)
+            loss = tnf.mse_loss(target_predict, target_t)
+            # + gamma * tnf.mse_loss(target_t1_predict, target_t1)
 
             optimizer_nnfer.zero_grad()
             loss.backward()
             optimizer_nnfer.step()
-            loss_tot += float(tnf.mse_loss(target_t1_predict, target_t1))
+            loss_tot += float(loss)
 
             # ---   vis    ---
             name = os.path.join(data_root, '../result', '{}.png'.format(str(i)))
-            cv2.imwrite(name.replace('.png', '_t1P.png'),
-                        (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
-            cv2.imwrite(name.replace('.png', '_t1T.png'),
-                        (target_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+            cv2.imwrite(name.replace('.png', '_t0P.png'),
+                        (target_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             cv2.imwrite(name.replace('.png', '_t0T.png'),
                         (target_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
