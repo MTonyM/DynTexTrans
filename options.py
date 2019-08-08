@@ -36,7 +36,7 @@ class TrainOptions(Options):
         self.parser.add_argument('--epoch', type=int, default=1000, help='number of epoch for each outer iteration')
         self.parser.add_argument('--progressive', type=int, default=1,
                                  help='1 for using progressive training, 0 for using normal training')
-        self.parser.add_argument('--batchsize', type=int, default=16,
+        self.parser.add_argument('--batchsize', type=int, default=64,
                                  help='batchsize for level3. level3 use batchsize, ')
         self.parser.add_argument('--datasize', type=int, default=12800, help='number of sampled data for each epoch')
         self.parser.add_argument('--datarange', type=int, default=708,

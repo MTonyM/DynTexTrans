@@ -35,13 +35,13 @@ def train():
         pbar = tqdm(total=len(dataloader), desc='epoch#{}'.format(epoch))
         pbar.set_postfix({'loss': 'N/A'})
         loss_tot = 0.0
-        gamma = epoch / opt.epoch
+        # gamma = epoch / opt.epoch
 
         for i, (source_t, target_t, source_t1, target_t1) in enumerate(dataloader):
             source_t = Variable(source_t, requires_grad=True).cuda()
             target_t = Variable(target_t, requires_grad=True).cuda()
-            source_t1 = Variable(source_t1, requires_grad=True).cuda()
-            target_t1 = Variable(target_t1, requires_grad=True).cuda()
+            # source_t1 = Variable(source_t1, requires_grad=True).cuda()
+            # target_t1 = Variable(target_t1, requires_grad=True).cuda()
             nnf = nnfer(source_t, target_t)
             if nnf_conf == 3:
                 nnf = nnf[:, :2, :, :] * nnf[:, 2:, :, :]  # mask via the confidence
