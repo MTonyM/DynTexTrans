@@ -24,7 +24,7 @@ from options import TrainOptions
 def train():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
-    train_params = {'lr': 0.01, 'epoch_milestones': (100, 500)}
+    train_params = {'lr': 0.001, 'epoch_milestones': (100, 500)}
     dataset = DynTexNNFTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
@@ -59,9 +59,9 @@ def train():
 
             # ---   vis    ---
             name = os.path.join(data_root, '../result', '{}.png'.format(str(i)))
-            cv2.imwrite(name.replace('.png', '_t0P.png'),
+            cv2.imwrite(name.replace('.png', '{}_t0P.png'.format(epoch)),
                         (target_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
-            cv2.imwrite(name.replace('.png', '_t0T.png'),
+            cv2.imwrite(name.replace('.png', '{}_t0T.png'.format(epoch)),
                         (target_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
             pbar.update(1)
