@@ -32,7 +32,6 @@ class NNFPredictor(nn.Module):
 class Synthesiser(nn.Module):
     def __init__(self):
         super(Synthesiser, self).__init__()
-        self.ps = 5
 
     def forward(self, source, nnf):
         bs, c, h, w = source.shape
@@ -51,7 +50,7 @@ class Synthesiser(nn.Module):
         #     image_style_patches = tnf.grid_sample(source[i], grid)
         #     img_style.append(image_style_patches)
         # img_style = torch.stack(img_style, dim=0).permute(0, -1, 1, 2)
-        return tnf.grid_sample(source, grid)
+        return tnf.grid_sample(source, grid, padding_mode='zeros')
 
 
 class Synthesiser3D(nn.Module):

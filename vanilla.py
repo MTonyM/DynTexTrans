@@ -45,7 +45,6 @@ def train():
             nnf = nnfer(source_t, target_t)
             if nnf_conf == 3:
                 nnf = nnf[:, :2, :, :] * nnf[:, 2:, :, :]  # mask via the confidence
-            name = os.path.join(data_root, '..', '{}.png'.format(str(i)))
             # --- synthesis ---
             target_predict = syner(source_t, nnf)
             target_t1_predict = syner(source_t1, nnf)
@@ -58,6 +57,7 @@ def train():
             loss_tot += float(tnf.mse_loss(target_t1_predict, target_t1))
 
             # ---   vis    ---
+            name = os.path.join(data_root, '../result', '{}.png'.format(str(i)))
             cv2.imwrite(name.replace('.png', '_t1P.png'),
                         (target_t1_predict.detach().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             cv2.imwrite(name.replace('.png', '_t1T.png'),

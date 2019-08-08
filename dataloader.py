@@ -80,5 +80,6 @@ def test():
         target_predict = syner(source_t1, nnf)
         cv2.imwrite(name, (target_predict.detach().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
+
 if __name__ == '__main__':
     test()
