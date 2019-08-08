@@ -23,13 +23,13 @@ from options import TrainOptions
 
 def train():
     opt = TrainOptions().parse()
-    data_root = '/Users/tony/PycharmProjects/DynTexTrans/data/processed'
+    data_root = 'data/processed'
     train_params = {'lr': 0.01, 'epoch_milestones': (100, 500)}
     dataset = DynTexNNFTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
-    syner = Synthesiser()
-    nnfer = NNFPredictor(out_channel=nnf_conf)
+    syner = Synthesiser().cuda()
+    nnfer = NNFPredictor(out_channel=nnf_conf).cuda()
     optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'])
     for epoch in range(opt.epoch):
         pbar = tqdm(total=len(dataloader), desc='epoch#{}'.format(epoch))
@@ -38,10 +38,10 @@ def train():
         gamma = epoch / opt.epoch
 
         for i, (source_t, target_t, source_t1, target_t1) in enumerate(dataloader):
-            source_t = Variable(source_t, requires_grad=True)
-            target_t = Variable(target_t, requires_grad=True)
-            source_t1 = Variable(source_t1, requires_grad=True)
-            target_t1 = Variable(target_t1, requires_grad=True)
+            source_t = Variable(source_t, requires_grad=True).cuda()
+            target_t = Variable(target_t, requires_grad=True).cuda()
+            source_t1 = Variable(source_t1, requires_grad=True).cuda()
+            target_t1 = Variable(target_t1, requires_grad=True).cuda()
             nnf = nnfer(source_t, target_t)
             if nnf_conf == 3:
                 nnf = nnf[:, :2, :, :] * nnf[:, 2:, :, :]  # mask via the confidence
@@ -59,11 +59,11 @@ def train():
             # ---   vis    ---
             name = os.path.join(data_root, '../result', '{}.png'.format(str(i)))
             cv2.imwrite(name.replace('.png', '_t1P.png'),
-                        (target_t1_predict.detach().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                        (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             cv2.imwrite(name.replace('.png', '_t1T.png'),
-                        (target_t1.detach().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                        (target_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             cv2.imwrite(name.replace('.png', '_t0T.png'),
-                        (target_t.detach().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                        (target_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
             pbar.update(1)
 

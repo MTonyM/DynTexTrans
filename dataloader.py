@@ -33,7 +33,7 @@ class DynTexNNFTrainDataset(Dataset):
         self.train_shape = cv2.imread(os.path.join(self.data_root, self.data_list[0])).shape[:2]
         self.target_transforms = transforms.Compose([
             transforms.ToPILImage(),
-            # transforms.RandomResizedCrop(self.train_shape),
+            transforms.RandomResizedCrop(self.train_shape),
             # transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
