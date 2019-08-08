@@ -86,7 +86,7 @@ class StackedHourglass(nn.Module):
                3. `Stacked Hourglass Networks for Human Pose Estimation` https://arxiv.org/pdf/1603.06937.pdf
     """
 
-    def __init__(self, in_channels, out_channels, inter_channels, stacked_num=2, dropout_rate=0.2):
+    def __init__(self, in_channels, out_channels, inter_channels, stacked_num=2, dropout_rate=0.2, refine=False):
         """
         :param in_channels: 3
         :param out_channels: K
@@ -95,6 +95,7 @@ class StackedHourglass(nn.Module):
         """
         super().__init__()
         self.stacked_num = stacked_num
+        self.refine = refine
         self.in_branch = Sequential(*[
             SConv2d(in_channels=in_channels, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64, momentum=0.9),
@@ -126,6 +127,8 @@ class StackedHourglass(nn.Module):
             # Activation('relu')
         ]) for _ in range(stacked_num - 1)])
 
+        self.upsample_r = ResidualModule(in_channels=out_channels, out_channels=out_channels)
+
     def forward(self, x, **kwargs):
         x_downsample = self.in_branch(x)
         x = self.post_in_branch(x_downsample)
@@ -140,6 +143,10 @@ class StackedHourglass(nn.Module):
                 x_rechanneled = self.inter_rechannel[i](heat_map)
                 post_linear = self.post_linear_module[i](hg)
                 x = x + post_linear + x_rechanneled
+        if self.refine:
+            heat_map_list[-1] = F.interpolate(heat_map_list[-1], scale_factor=(2, 2), mode='bilinear',
+                                              align_corners=True)
+            heat_map_list[-1] = self.upsample_r(heat_map_list[-1])
         return heat_map_list
 
 

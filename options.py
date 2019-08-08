@@ -33,11 +33,11 @@ class TrainOptions(Options):
 
         self.parser.add_argument('--outer_iter', type=int, default=50,
                                  help='number of iteration for fading in progressive training')
-        self.parser.add_argument('--epoch', type=int, default=5, help='number of epoch for each outer iteration')
+        self.parser.add_argument('--epoch', type=int, default=1000, help='number of epoch for each outer iteration')
         self.parser.add_argument('--progressive', type=int, default=1,
                                  help='1 for using progressive training, 0 for using normal training')
         self.parser.add_argument('--batchsize', type=int, default=16,
-                                 help='batchsize for level3. level3 use batchsize, level2 use 2*batchsize, level1 use 4*batchsize')
+                                 help='batchsize for level3. level3 use batchsize, ')
         self.parser.add_argument('--datasize', type=int, default=12800, help='number of sampled data for each epoch')
         self.parser.add_argument('--datarange', type=int, default=708,
                                  help='data sampling range for each style (data is sampled from 1.png ~ datarange.png)')

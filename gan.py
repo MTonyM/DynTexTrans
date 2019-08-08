@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -129,7 +130,7 @@ class Generator(nn.Module):
         skips = self.encoder(self.pre_decoder(source_image))
         result = self.decoder(skips, dense_flow)
         result = self.refinement(result)
-        return result
+        return result, dense_flow
 
 
 class Discriminator(nn.Module):
@@ -151,9 +152,8 @@ class Discriminator(nn.Module):
 
 
 def done():
-    from kpdetector import KeyPointDetector
+    from kpdetector import KeyPointDetector, StackedHourglass
     from options import TrainOptions
-    from losses import generator_loss, discriminator_loss
     from dataloader import DynTexTrainDataset
     from torch.utils.data import DataLoader
     from torch.optim.lr_scheduler import MultiStepLR
@@ -162,7 +162,7 @@ def done():
     import cv2
     opt = TrainOptions().parse()
     print('---- training params. ----')
-    train_params = {'lr': 0.00001, 'epoch_milestones': (100, 500)}
+    train_params = {'lr': 0.001, 'epoch_milestones': (100, 500)}
     loss_weight = {'reconstruction_def': 1.0, 'reconstruction': 10.0, 'generator_gan': 1.0, 'discriminator_gan': 1.0}
     pprint(train_params)
     pprint(loss_weight)
@@ -170,7 +170,13 @@ def done():
     kpd = KeyPointDetector(opt).train()
     gen = Generator(opt).train()
     dis_ = Discriminator(opt).train()
+    gen_vanila = StackedHourglass(in_channels=6, out_channels=3, inter_channels=128, stacked_num=2, dropout_rate=0.1
+                                  , refine=True)
     start_epoch = 0
+
+    optimizer_gv = torch.optim.Adam(gen_vanila.parameters(), lr=train_params['lr'], betas=(0.5, 0.999))
+    scheduler_gv = MultiStepLR(optimizer_gv, train_params['epoch_milestones'], gamma=0.1,
+                               last_epoch=start_epoch - 1)
 
     optimizer_generator = torch.optim.Adam(gen.parameters(), lr=train_params['lr'], betas=(0.5, 0.999))
     optimizer_discriminator = torch.optim.Adam(dis_.parameters(), lr=train_params['lr'], betas=(0.5, 0.999))
@@ -187,50 +193,73 @@ def done():
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
 
     for epoch in range(start_epoch, start_epoch + 700):
-        pbar = tqdm(total=len(dataloader), desc="=> training epoch # {}".format(epoch), ascii=True, ncols=120)
+        pbar = tqdm(total=len(dataloader), desc="=> training epoch # {}".format(epoch), ascii=True)
         pbar.set_postfix({'L_G': 'N/A', 'L_D': 'N/A'})
         for batch, (source_tensor, drivin_tensor) in enumerate(dataloader):
             source_tensor = torch.Tensor.float(source_tensor).requires_grad_()
             drivin_tensor = torch.Tensor.float(drivin_tensor).requires_grad_()
+            inputs = torch.cat([source_tensor, drivin_tensor], 1)
+            outs = gen_vanila(inputs)
 
-            source_kp, drivin_kp = kpd(torch.cat([source_tensor, drivin_tensor], dim=1))
-            gened = gen(source_tensor, drivin_kp, source_kp)
-            dis_feat = dis_(gened)
-            dis_real = dis_(drivin_tensor)
+            print(outs[-1].shape, drivin_tensor.shape)
+            gened = outs[-1]
+            # source_kp, drivin_kp = kpd(torch.cat([source_tensor, drivin_tensor], dim=1))
+            # gened, inter = gen(source_tensor, drivin_kp, source_kp)
+            # dis_feat = dis_(gened)
+            # dis_real = dis_(drivin_tensor)
 
-            loss_g = generator_loss(dis_feat, dis_real, loss_weights=loss_weight)
-            loss_g = torch.mean(torch.cat(list(loss_g.values())), dim=0)
-            loss_g.backward(retain_graph=True)
+            # loss_g = generator_loss(dis_feat, dis_real, loss_weights=loss_weight)
+            # loss_g = torch.mean(torch.cat(list(loss_g.values())), dim=0)
+            # loss_g.backward(retain_graph=True)
 
-            optimizer_generator.step()
-            optimizer_generator.zero_grad()
-            optimizer_discriminator.zero_grad()
+            mse = torch.mean((gened - drivin_tensor) * (gened - drivin_tensor))
+            mse.backward(retain_graph=True)
 
-            loss_d = discriminator_loss(dis_feat, dis_real, weight=loss_weight['discriminator_gan'])
-            loss_d = torch.mean(torch.cat(list(loss_d.values())), dim=0)
-            loss_d.backward()
+            optimizer_gv.step()
+            optimizer_gv.zero_grad()
+            # optimizer_generator.step()
+            # optimizer_generator.zero_grad()
+            # optimizer_discriminator.zero_grad()
 
-            optimizer_discriminator.step()
-            optimizer_discriminator.zero_grad()
+            # loss_d = discriminator_loss(dis_feat, dis_real, weight=loss_weight['discriminator_gan'])
+            # loss_d = torch.mean(torch.cat(list(loss_d.values())), dim=0)
+            # loss_d.backward()
 
-            optimizer_kp_detector.step()
-            optimizer_kp_detector.zero_grad()
+            # optimizer_discriminator.step()
+            # optimizer_discriminator.zero_grad()
+            #
+            # optimizer_kp_detector.step()
+            # optimizer_kp_detector.zero_grad()
+
             # vis
-            ge = (gened.detach().numpy()[0].transpose([1, 2, 0]) * 255).astype('uint8')
-            # gt = (drivin_tensor.detach().numpy()[0].transpose([1, 2, 0]) * 255).astype('uint8')
-            if batch == len(dataloader) - 2:
+            ge = normalization(gened.detach().numpy()[0].transpose([1, 2, 0])).astype('uint8')
+            # ge = (inter.detach().numpy()[0])
+            # print(len(np.unique(ge)), np.max(np.unique(ge)), np.min(np.unique(ge)), np.mean(ge))
+            gt = (drivin_tensor.detach().numpy()[0].transpose([1, 2, 0]) * 255).astype('uint8')
+            if batch == 1:
                 root = '/Users/tony/PycharmProjects/DynTexTrans/data/result/'
-                cv2.imwrite(root + '{}_{}_ge.png'.format(epoch, batch), ge)
-                # cv2.imwrite(root + '{}_{}_gt.png'.format(epoch, batch), gt)
+                vis = np.zeros(shape=(*ge.shape[:2], 3))
+                vis[:, :, :ge.shape[2]] = ge
+                cv2.imwrite(root + '{}_{}_ge.png'.format(epoch, batch), vis)
+                cv2.imwrite(root + 'gt.png', gt)
+
             # vis
 
-            loss_dict = {'L_G': '{:.5f}'.format(float(loss_g)), 'L_D': '{:.5f}'.format(float(loss_d))}
-            pbar.set_postfix(loss_dict)
+            # loss_dict = {'L_G': '{:.5f}'.format(float(loss_g)), 'L_D': '{:.5f}'.format(float(loss_d))}
+            # pbar.set_postfix(loss_dict)
+            loss = {'loss': '{:.5f}'.format(float(mse))}
+            pbar.set_postfix(loss)
             pbar.update(1)
         scheduler_discriminator.step(epoch)
         scheduler_generator.step(epoch)
         scheduler_kp_detector.step(epoch)
         pbar.close()
+
+
+def normalization(tens):
+    tens = tens - np.min(tens)
+    tens = tens / (np.max(tens) - np.min(tens))
+    return tens * 255
 
 
 if __name__ == '__main__':
