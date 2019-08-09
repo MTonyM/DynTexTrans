@@ -37,7 +37,9 @@ class Synthesiser(nn.Module):
         bs, c, h, w = source.shape
         patch_coordinates = nnf  # B, 2, h, w
         patch_index_i, patch_index_j = torch.split(patch_coordinates, [1, 1], dim=1)  # B, 1, h, w
-        grid = torch_make_grid((h, w), center=True, normalized=True).cuda()  # B, h, w, 2
+        grid = torch_make_grid((h, w), center=True, normalized=True)  # B, h, w, 2
+        if torch.cuda.is_available():
+            grid = grid.cuda()
         grid = torch.repeat_interleave(grid.unsqueeze(0), bs, dim=0)
         grid[:, :, :, 0] += patch_index_i.squeeze()
         grid[:, :, :, 1] += patch_index_j.squeeze()

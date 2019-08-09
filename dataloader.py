@@ -4,6 +4,7 @@ import cv2
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
+import albumentations as albu
 
 
 class DynTexTrainDataset(Dataset):
@@ -31,14 +32,14 @@ class DynTexNNFTrainDataset(Dataset):
         self.effect = effect
         self.data_list = sorted(os.listdir(self.data_root), key=lambda x: int(x.replace('.png', '')))
         self.train_shape = cv2.imread(os.path.join(self.data_root, self.data_list[0])).shape[:2]
-        self.target_transforms = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.RandomResizedCrop(self.train_shape),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        self.target_transforms = albu.Compose([
+            albu.RandomSizedBBoxSafeCrop(height=self.train_shape[1], width=self.train_shape[0]),
+            albu.HorizontalFlip(p=0.5),
+            # transforms.ToTensor(),
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         self.final_transforms = transforms.Compose([
+            transforms.ToPILImage(),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -57,8 +58,10 @@ class DynTexNNFTrainDataset(Dataset):
         source_t = cv2.imread(os.path.join(self.data_root, path1), cv2.IMREAD_UNCHANGED)
         source_t1 = cv2.imread(os.path.join(self.data_root, path2), cv2.IMREAD_UNCHANGED)
         
-        target_t, target_t1 = self.target_transforms([source_t, source_t1])
-        # target_t1 = self.target_transforms(source_t1)
+        augmented = self.target_transforms(image=source_t, mask=source_t1)
+        target_t, target_t1 = augmented['image'], augmented['mask']
+        target_t = self.final_transforms(target_t)
+        target_t1 = self.final_transforms(target_t1)
         source_t = self.source_transforms(source_t)
         source_t1 = self.source_transforms(source_t1)
         return source_t, target_t, source_t1, target_t1

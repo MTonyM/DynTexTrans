@@ -15,7 +15,7 @@ from torch.autograd.variable import Variable
 from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
-
+import torch
 from dataloader import DynTexNNFTrainDataset
 from nnf import NNFPredictor, Synthesiser
 from options import TrainOptions
@@ -29,8 +29,11 @@ def train():
     dataset = DynTexNNFTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
-    syner = Synthesiser().cuda()
-    nnfer = NNFPredictor(out_channel=nnf_conf).cuda()
+    syner = Synthesiser()
+    nnfer = NNFPredictor(out_channel=nnf_conf)
+    if torch.cuda.is_available():
+        syner = syner.cuda()
+        nnfer = nnfer.cuda()
     optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'])
     table = Table()
     for epoch in range(opt.epoch):
@@ -40,10 +43,12 @@ def train():
         gamma = epoch / opt.epoch
 
         for i, (source_t, target_t, source_t1, target_t1) in enumerate(dataloader):
-            source_t = Variable(source_t, requires_grad=True).cuda()
-            target_t = Variable(target_t, requires_grad=True).cuda()
-            source_t1 = Variable(source_t1, requires_grad=True).cuda()
-            target_t1 = Variable(target_t1, requires_grad=True).cuda()
+            
+            if torch.cuda.is_available():
+                source_t = Variable(source_t, requires_grad=True).cuda()
+                target_t = Variable(target_t, requires_grad=True).cuda()
+                source_t1 = Variable(source_t1, requires_grad=True).cuda()
+                target_t1 = Variable(target_t1, requires_grad=True).cuda()
             nnf = nnfer(source_t, target_t)
             if nnf_conf == 3:
                 nnf = nnf[:, :2, :, :] * nnf[:, 2:, :, :]  # mask via the confidence
@@ -77,10 +82,18 @@ def train():
                         (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
             # vis in table
-            table.add(index, os.path.abspath(name.replace('.png', '_t.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_p.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_t1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+            table.add(index,
+                      os.path.abspath(name.replace('.png', '_t.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
+                                                                              ''))
+            table.add(index,
+                      os.path.abspath(name.replace('.png', '_p.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
+                                                                              ''))
+            table.add(index,
+                      os.path.abspath(name.replace('.png', '_t1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
+                                                                               ''))
+            table.add(index,
+                      os.path.abspath(name.replace('.png', '_p1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
+                                                                               ''))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
             pbar.update(1)
         table.build_html('data/')
