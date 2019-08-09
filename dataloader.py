@@ -38,6 +38,10 @@ class DynTexNNFTrainDataset(Dataset):
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
+        self.final_transforms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
         self.source_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.ToTensor(),
@@ -52,9 +56,9 @@ class DynTexNNFTrainDataset(Dataset):
         path2 = self.data_list[item + 1]
         source_t = cv2.imread(os.path.join(self.data_root, path1), cv2.IMREAD_UNCHANGED)
         source_t1 = cv2.imread(os.path.join(self.data_root, path2), cv2.IMREAD_UNCHANGED)
-
-        target_t = self.target_transforms(source_t)
-        target_t1 = self.target_transforms(source_t1)
+        
+        target_t, target_t1 = self.target_transforms([source_t, source_t1])
+        # target_t1 = self.target_transforms(source_t1)
         source_t = self.source_transforms(source_t)
         source_t1 = self.source_transforms(source_t1)
         return source_t, target_t, source_t1, target_t1

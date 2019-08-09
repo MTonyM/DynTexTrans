@@ -77,10 +77,10 @@ def train():
                         (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
             # vis in table
-            table.add(index, name.replace('.png', '_t.png'))
-            table.add(index, name.replace('.png', '_p.png'))
-            table.add(index, name.replace('.png', '_t1.png'))
-            table.add(index, name.replace('.png', '_p1.png'))
+            table.add(index, os.path.abspath(name.replace('.png', '_t.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+            table.add(index, os.path.abspath(name.replace('.png', '_p.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+            table.add(index, os.path.abspath(name.replace('.png', '_t1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+            table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
             pbar.update(1)
         table.build_html('data/')

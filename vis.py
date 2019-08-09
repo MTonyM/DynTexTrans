@@ -53,13 +53,13 @@ class Table(object):
 
     def add(self, key: str, url: str):
         if not key in self.img_list.keys():
-            self.img_list[key] = []
+            self.img_list[key] = [url]
         else:
             self.img_list[key].append(url)
 
     def build_html(self, path):
         html = self.header
-        for key in sorted(self.img_list.keys()):
+        for key in sorted(self.img_list.keys(), key=lambda x: int(x.split("(")[0])):
             html += self.format.format(key, *self.img_list[key])
         html += self.tail
         with open(os.path.join(path, 'vis.html'), 'w') as f:

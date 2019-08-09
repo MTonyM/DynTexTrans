@@ -254,3 +254,4 @@ pip-selfcheck.json
 data/result/*.png
 data/raw/**/*.png
 data/*.py
+data/*
