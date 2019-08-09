@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from SameConv2d import Conv2d as SConv2d
-from dense_motion import DenseMotionEstimator
+from deprecated.dense_motion import DenseMotionEstimator
 from hourglass import ResidualModule
 
 
@@ -152,7 +152,7 @@ class Discriminator(nn.Module):
 
 
 def done():
-    from kpdetector import KeyPointDetector, StackedHourglass
+    from deprecated.kpdetector import KeyPointDetector, StackedHourglass
     from options import TrainOptions
     from dataloader import DynTexTrainDataset
     from torch.utils.data import DataLoader

@@ -1,6 +1,6 @@
 import torch
 
-from matutils import make_coordinate_grid
+from deprecated.matutils import make_coordinate_grid
 
 
 def gaussian2kp(heatmap, kp_variance='matrix', clip_variance=None):

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from hourglass import HourglassModule
-from matutils import make_coordinate_grid
+from deprecated.matutils import make_coordinate_grid
 
 
 class PrepareForDenseMotion(nn.Module):

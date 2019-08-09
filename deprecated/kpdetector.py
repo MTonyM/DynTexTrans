@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from hourglass import StackedHourglass
-from statutils import gaussian2kp
+from deprecated.statutils import gaussian2kp
 
 
 class KeyPointDetector(nn.Module):

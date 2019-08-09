@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as tnf
 
-from kpdetector import StackedHourglass
+from hourglass import StackedHourglass
 
 
 class NNFPredictor(nn.Module):

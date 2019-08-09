@@ -23,7 +23,7 @@ from options import TrainOptions
 from vis import Table
 
 
-def train():
+def train_simple_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
     train_params = {'lr': 0.001, 'epoch_milestones': (100, 500)}
@@ -107,6 +107,11 @@ def train():
         table.build_html('data/')
         pbar.close()
 
+def train_complex_trans():
+    pass
+
+
+
 
 if __name__ == '__main__':
-    train()
+    train_simple_trans()

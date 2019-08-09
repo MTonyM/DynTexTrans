@@ -12,5 +12,8 @@ if __name__ == '__main__':
     for i in range(60, 211):
         single_frame = cv2.imread(os.path.join(data_root, '{}.png'.format(i)), cv2.IMREAD_UNCHANGED)
         successed = cv2.imwrite(
-            os.path.join('/Users/tony/PycharmProjects/DynTexTrans/data/processed', '{}.png'.format(i - 60)),
+            os.path.join('/Users/tony/PycharmProjects/DynTexTrans/data/processed/flame', '{}.png'.format(i - 60)),
             cv2.resize(single_frame[u:d, l:r, :], (64, 64)))
+        cv2.imwrite(
+            os.path.join('/Users/tony/PycharmProjects/DynTexTrans/data/processed/flame-figure',
+                         '{}.png'.format(i - 60)), cv2.resize(single_frame, (150, 120)))
