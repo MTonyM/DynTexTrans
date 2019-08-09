@@ -44,18 +44,11 @@ class Synthesiser(nn.Module):
         grid[:, :, :, 0] += patch_index_i.squeeze()
         grid[:, :, :, 1] += patch_index_j.squeeze()
         grid = torch.clamp(grid, -1, 1)
-        # patch_index_i = torch.clamp(patch_index_i, 0, h - 1).squeeze()
-        # patch_index_j = torch.clamp(patch_index_j, 0, w - 1).squeeze()
-        # source = source.permute(0, 2, 3, 1)
-        # img_style = []
-        # for i in range(bs):
-        #     image_style_patches = tnf.grid_sample(source[i], grid)
-        #     img_style.append(image_style_patches)
-        # img_style = torch.stack(img_style, dim=0).permute(0, -1, 1, 2)
         return tnf.grid_sample(source, grid, padding_mode='zeros')
 
 
 class Synthesiser3D(nn.Module):
+    # deprecated but still important.
     def __init__(self):
         super(Synthesiser3D, self).__init__()
         self.ps = 5
