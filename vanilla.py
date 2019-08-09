@@ -17,7 +17,7 @@ from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
-from dataloader import DynTexNNFTrainDataset
+from dataloader import DynTexNNFTrainDataset, DynTexFigureTrainDataset
 from nnf import NNFPredictor, Synthesiser
 from options import TrainOptions
 from vis import Table
@@ -27,7 +27,8 @@ def train_simple_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
     train_params = {'lr': 0.001, 'epoch_milestones': (100, 500)}
-    dataset = DynTexNNFTrainDataset(data_root, 'flame')
+    # dataset = DynTexNNFTrainDataset(data_root, 'flame')
+    dataset = DynTexFigureTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
     syner = Synthesiser()

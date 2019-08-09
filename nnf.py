@@ -87,8 +87,8 @@ class Synthesiser3D(nn.Module):
 def torch_make_grid(shape, center=False, normalized=False):
     x = torch.linspace(0, shape[0] - 1, steps=shape[0]).view((shape[0], 1))
     y = torch.linspace(0, shape[1] - 1, steps=shape[1]).view((1, shape[1]))
-    xx = torch.repeat_interleave(x, shape[0], dim=1)
-    yy = torch.repeat_interleave(y, shape[1], dim=0)
+    xx = torch.repeat_interleave(x, shape[1], dim=1)
+    yy = torch.repeat_interleave(y, shape[0], dim=0)
 
     if center:
         xx -= shape[0] // 2
