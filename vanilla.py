@@ -148,12 +148,12 @@ def train_complex_trans():
             target_t_predict = syner(source_t, nnf)
             source_t1_predict = syner(source_t, flow)  # flow penalty
             target_flow = syner(flow, nnf)  # predict flow
-            target_t1_predict = syner(source_t1, target_flow)
+            target_t1_predict = syner(target_t, target_flow)
 
-            loss_t = tnf.mse_loss(source_t, target_t)
-            loss_t1_f = tnf.mse_loss(source_t1, source_t1_predict)
-            loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)
-            loss = (loss_t1 + loss_t) / 2 + loss_t1_f
+            loss_t = tnf.mse_loss(target_t_predict, target_t)  # nnf penalty
+            loss_t1_f = tnf.mse_loss(source_t1, source_t1_predict)  # flow penalty
+            loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)  # total penalty
+            loss = (loss_t1 + loss_t) + loss_t1_f
 
             optimizer_nnfer.zero_grad()
             loss.backward()
