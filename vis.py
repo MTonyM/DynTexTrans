@@ -31,6 +31,8 @@ class Table(object):
 <tbody>
 	<tr>
 		<td>index</td>
+		<td>St</td>
+		<td>St+1</td>
 		<td>Tt</td>
 		<td>Tt+1</td>
 		<td>PrTt</td>
@@ -45,6 +47,8 @@ class Table(object):
         self.format = """
     <tr>
 		<td>{}</td>
+		<td><img src="{}"></td>
+		<td><img src="{}"></td>
 		<td><img src="{}"></td>
 		<td><img src="{}"></td>
 		<td><img src="{}"></td>
