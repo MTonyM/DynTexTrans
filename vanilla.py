@@ -43,7 +43,7 @@ def train():
         gamma = epoch / opt.epoch
 
         for i, (source_t, target_t, source_t1, target_t1) in enumerate(dataloader):
-            
+
             if torch.cuda.is_available():
                 source_t = Variable(source_t, requires_grad=True).cuda()
                 target_t = Variable(target_t, requires_grad=True).cuda()
@@ -57,7 +57,7 @@ def train():
             target_t1_predict = syner(source_t1, nnf)
             loss_t = tnf.mse_loss(target_predict, target_t)
             loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)
-            loss = loss_t + gamma * loss_t1
+            loss = loss_t + loss_t1
 
             optimizer_nnfer.zero_grad()
             loss.backward()
@@ -86,11 +86,11 @@ def train():
                       os.path.abspath(name.replace('.png', '_t.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
                                                                               ''))
             table.add(index,
-                      os.path.abspath(name.replace('.png', '_p.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
-                                                                              ''))
-            table.add(index,
                       os.path.abspath(name.replace('.png', '_t1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
                                                                                ''))
+            table.add(index,
+                      os.path.abspath(name.replace('.png', '_p.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
+                                                                              ''))
             table.add(index,
                       os.path.abspath(name.replace('.png', '_p1.png')).replace('/mnt/cephfs_hl/lab_ad_idea/maoyiming',
                                                                                ''))

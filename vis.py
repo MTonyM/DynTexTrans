@@ -32,8 +32,8 @@ class Table(object):
 	<tr>
 		<td>index</td>
 		<td>Tt</td>
-		<td>PrTt</td>
 		<td>Tt+1</td>
+		<td>PrTt</td>
 		<td>PrTt+1</td>
 	</tr>
 """
