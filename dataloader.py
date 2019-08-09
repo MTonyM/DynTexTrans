@@ -32,13 +32,14 @@ class DynTexNNFTrainDataset(Dataset):
         self.effect = effect
         self.data_list = sorted(os.listdir(self.data_root), key=lambda x: int(x.replace('.png', '')))
         self.train_shape = cv2.imread(os.path.join(self.data_root, self.data_list[0])).shape[:2]
-        self.scaled_shape = (int(self.train_shape[0] * 0.75), int(self.train_shape[1] * 1.5))
+        self.scaled_shape = (int(self.train_shape[0] * 0.5), int(self.train_shape[1] * 0.8))
 
         self.target_transforms = albu.Compose([
             albu.RandomSizedCrop(self.scaled_shape, height=self.train_shape[1], width=self.train_shape[0]),
+            albu.ElasticTransform(),
+            albu.Blur(blur_limit=11, p=0.5),
+            albu.RandomBrightnessContrast(p=0.5),
             albu.HorizontalFlip(p=0.5),
-            # transforms.ToTensor(),
-            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         self.final_transforms = transforms.Compose([
             transforms.ToPILImage(),
