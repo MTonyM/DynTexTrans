@@ -50,7 +50,7 @@ class TrainOptions(Options):
         self.parser.add_argument('--centercropratio', type=float, default=0.5, help='ratio of center cropping')
 
         # model related
-        self.parser.add_argument('--save_model_name', type=str, default='../save/tet.ckpt',
+        self.parser.add_argument('--time', type=str, default='exp',
                                  help='specify the model name to save')
         self.parser.add_argument('--gpu', type=int, default=0, help='gpu, 0 for cpu, 1 for gpu')
         self.parser.add_argument('--inter_channels', type=int, default=128,
