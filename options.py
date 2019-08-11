@@ -1,5 +1,5 @@
 import argparse
-
+import torch
 
 class Options:
     def __init__(self):
@@ -8,6 +8,10 @@ class Options:
 
     def parse(self):
         self.opt = self.parser.parse_args()
+        if not torch.cuda.is_available():
+            self.opt.batchsize = 2
+            self.opt.num_workers = 0
+
         args = vars(self.opt)
         print('--- load options ---')
         for name, value in sorted(args.items()):
@@ -36,7 +40,7 @@ class TrainOptions(Options):
         self.parser.add_argument('--epoch', type=int, default=1000, help='number of epoch for each outer iteration')
         self.parser.add_argument('--progressive', type=int, default=1,
                                  help='1 for using progressive training, 0 for using normal training')
-        self.parser.add_argument('--batchsize', type=int, default=64,
+        self.parser.add_argument('--batchsize', type=int, default=2,
                                  help='batchsize for level3. level3 use batchsize, ')
         self.parser.add_argument('--datasize', type=int, default=12800, help='number of sampled data for each epoch')
         self.parser.add_argument('--datarange', type=int, default=708,

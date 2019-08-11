@@ -3,6 +3,8 @@ import os
 import albumentations as albu
 import cv2
 import numpy as np
+import torch
+import random
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
@@ -109,7 +111,6 @@ class DynTexFigureTrainDataset(Dataset):
         source_t1 = cv2.imread(os.path.join(self.data_root, path2), cv2.IMREAD_UNCHANGED)
         target_t = cv2.imread(os.path.join(self.data_figure_root, patht1), cv2.IMREAD_UNCHANGED)
         target_t1 = cv2.imread(os.path.join(self.data_figure_root, patht2), cv2.IMREAD_UNCHANGED)
-
         target_t = self.final_transforms(target_t)
         target_t1 = self.final_transforms(target_t1)
         source_t = self.source_transforms(source_t)
@@ -129,6 +130,10 @@ class DynTexFigureTransTrainDataset(Dataset):
         # self.scaled_shape = (int(self.train_shape[0] * 0.5), int(self.train_shape[1] * 0.8))
         diff_h = (self.figure_shape[0] - self.effect_shape[0]) // 2
         diff_w = (self.figure_shape[1] - self.effect_shape[1]) // 2
+        self.target_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.RandomAffine(degrees=(-20, 20), translate=(0.2, 0.3), scale=(0.5, 1.1), ),
+        ])
         self.source_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.Pad((diff_w, diff_h, diff_w, diff_h)),  # 左，上，右，下
@@ -136,8 +141,8 @@ class DynTexFigureTransTrainDataset(Dataset):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         self.final_transforms = transforms.Compose([
-            transforms.RandomAffine(degrees=30, translate=(0.2, 0.5), scale=(0.5, 1.1)),
             transforms.ToPILImage(),
+            transforms.RandomAffine(degrees=(-20, 20), translate=(0.2, 0.5), scale=(0.5, 1.1), ),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -156,8 +161,10 @@ class DynTexFigureTransTrainDataset(Dataset):
         source_t1 = cv2.imread(os.path.join(self.data_root, path2), cv2.IMREAD_UNCHANGED)
         target_t = cv2.imread(os.path.join(self.data_figure_root, patht1), cv2.IMREAD_UNCHANGED)
         target_t1 = cv2.imread(os.path.join(self.data_figure_root, patht2), cv2.IMREAD_UNCHANGED)
-
+        seed = random.randint(0, 5454)
+        random.seed(seed)
         target_t = self.final_transforms(target_t)
+        random.seed(seed)
         target_t1 = self.final_transforms(target_t1)
         source_t = self.source_transforms(source_t)
         source_t1 = self.source_transforms(source_t1)
