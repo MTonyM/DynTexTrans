@@ -22,7 +22,7 @@ from nnf import NNFPredictor, Synthesiser
 from options import TrainOptions
 from vis import Table
 from tensorboardX import SummaryWriter
-
+import numpy as np
 
 def train_simple_trans():
     opt = TrainOptions().parse()
@@ -289,7 +289,7 @@ def train_complex_trans():
                 table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace(
                     '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
-            writer.add_scalar('loss_train', float(loss), i + int(epoch*ceil(len(dataloader)/opt.batchsize)))
+            writer.add_scalar('loss_train', float(loss), i + int(epoch*np.ceil(len(dataloader)/opt.batchsize)))
             pbar.update(1)
         table.build_html('data/')
         pbar.close()
