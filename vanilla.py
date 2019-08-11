@@ -17,7 +17,7 @@ from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
-from dataloader import DynTexFigureTrainDataset
+from dataloader import DynTexFigureTrainDataset, DynTexFigureTransTrainDataset
 from nnf import NNFPredictor, Synthesiser
 from options import TrainOptions
 from vis import Table
@@ -199,8 +199,8 @@ def train_complex_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
     train_params = {'lr': 0.01, 'epoch_milestones': (100, 500)}
-    # dataset = DynTexNNFTrainDataset(data_root, 'flame')
-    dataset = DynTexFigureTrainDataset(data_root, 'flame')
+    # dataset = DynTexFigureTrainDataset(data_root, 'flame')
+    dataset = DynTexFigureTransTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
     syner = Synthesiser()
@@ -250,42 +250,43 @@ def train_complex_trans():
             loss_tot += float(loss)
 
             # ---   vis    ---
-            name = os.path.join(data_root, '../result/', str(epoch), '{}.png'.format(str(i)))
-            index = str(epoch) + '({})'.format(i)
-            if not os.path.exists('/'.join(name.split('/')[:-1])):
-                os.makedirs('/'.join(name.split('/')[:-1]))
+            if epoch % 10 == 0 and i % 2 == 0:
+                name = os.path.join(data_root, '../result/', str(epoch), '{}.png'.format(str(i)))
+                index = str(epoch) + '({})'.format(i)
+                if not os.path.exists('/'.join(name.split('/')[:-1])):
+                    os.makedirs('/'.join(name.split('/')[:-1]))
 
-            cv2.imwrite(name.replace('.png', '_s.png'),
-                        (source_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                cv2.imwrite(name.replace('.png', '_s.png'),
+                            (source_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            cv2.imwrite(name.replace('.png', '_s1.png'),
-                        (source_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                cv2.imwrite(name.replace('.png', '_s1.png'),
+                            (source_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            cv2.imwrite(name.replace('.png', '_t.png'),
-                        (target_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                cv2.imwrite(name.replace('.png', '_t.png'),
+                            (target_t.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            cv2.imwrite(name.replace('.png', '_p.png'),
-                        (source_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                cv2.imwrite(name.replace('.png', '_p.png'),
+                            (source_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            cv2.imwrite(name.replace('.png', '_t1.png'),
-                        (target_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                cv2.imwrite(name.replace('.png', '_t1.png'),
+                            (target_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            cv2.imwrite(name.replace('.png', '_p1.png'),
-                        (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+                cv2.imwrite(name.replace('.png', '_p1.png'),
+                            (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            # vis in table
-            table.add(index, os.path.abspath(name.replace('.png', '_s.png')).replace(
-                '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_s1.png')).replace(
-                '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_t.png')).replace(
-                '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_t1.png')).replace(
-                '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_p.png')).replace(
-                '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
-            table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace(
-                '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+                # vis in table
+                table.add(index, os.path.abspath(name.replace('.png', '_s.png')).replace(
+                    '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+                table.add(index, os.path.abspath(name.replace('.png', '_s1.png')).replace(
+                    '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+                table.add(index, os.path.abspath(name.replace('.png', '_t.png')).replace(
+                    '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+                table.add(index, os.path.abspath(name.replace('.png', '_t1.png')).replace(
+                    '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+                table.add(index, os.path.abspath(name.replace('.png', '_p.png')).replace(
+                    '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
+                table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace(
+                    '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
             pbar.update(1)
         table.build_html('data/')
