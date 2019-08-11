@@ -240,7 +240,7 @@ def train_complex_trans():
             loss_t1_f = tnf.mse_loss(source_t1, source_t1_predict)  # flow penalty
             loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)  # total penalty
             loss_t_nnf = 0
-            loss = loss_t1_f + loss_t1 + loss_t_nnf
+            loss = loss_t1_f + 10 * loss_t1 + loss_t_nnf
 
             optimizer_flow.zero_grad()
             optimizer_nnfer.zero_grad()

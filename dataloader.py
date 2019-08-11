@@ -5,7 +5,7 @@ import cv2
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
-
+import numpy as np
 
 class DynTexTrainDataset(Dataset):
     def __init__(self, data_root, effect, aug=False):
@@ -93,15 +93,17 @@ class DynTexFigureTrainDataset(Dataset):
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
+        self.length = len(self.data_list) - 1
 
     def __len__(self):
         return len(self.data_list) - 1
 
     def __getitem__(self, item):
+        idx = item + np.random.randint(0, self.length) % self.length
         path1 = self.data_list[item]
-        path2 = self.data_list[item + 1]
+        path2 = self.data_list[idx]
         patht1 = self.data_figure_list[item]
-        patht2 = self.data_figure_list[item + 1]
+        patht2 = self.data_figure_list[idx]
         source_t = cv2.imread(os.path.join(self.data_root, path1), cv2.IMREAD_UNCHANGED)
         source_t1 = cv2.imread(os.path.join(self.data_root, path2), cv2.IMREAD_UNCHANGED)
         target_t = cv2.imread(os.path.join(self.data_figure_root, patht1), cv2.IMREAD_UNCHANGED)
