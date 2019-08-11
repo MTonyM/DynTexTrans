@@ -194,6 +194,7 @@ def train_simple_flow():
         table.build_html('data/')
         pbar.close()
 
+
 def train_complex_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
@@ -231,12 +232,12 @@ def train_complex_trans():
                 flow = flow[:, :2, :, :] * flow[:, 2:, :, :]
             # --- synthesis ---
             source_t1_predict = syner(source_t, flow)  # flow penalty
-            # target_flow = syner(flow, nnf)  # predict flow
-            # target_t1_predict = syner(target_t, target_flow)
+            target_flow = syner(flow, nnf)  # predict flow
+            target_t1_predict = syner(target_t, target_flow)
 
             loss_t1_f = tnf.mse_loss(source_t1, source_t1_predict)  # flow penalty
-            # loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)  # total penalty
-            loss = loss_t1_f
+            loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)  # total penalty
+            loss = loss_t1_f + loss_t1
 
             optimizer_nnfer.zero_grad()
             loss.backward()
@@ -264,8 +265,8 @@ def train_complex_trans():
             cv2.imwrite(name.replace('.png', '_t1.png'),
                         (target_t1.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
-            # cv2.imwrite(name.replace('.png', '_p1.png'),
-            #             (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
+            cv2.imwrite(name.replace('.png', '_p1.png'),
+                        (target_t1_predict.detach().cpu().numpy()[0].transpose(1, 2, 0) * 255).astype('int'))
 
             # vis in table
             table.add(index, os.path.abspath(name.replace('.png', '_s.png')).replace(
@@ -288,5 +289,5 @@ def train_complex_trans():
 
 if __name__ == '__main__':
     # train_simple_trans()
-    # train_complex_trans()
-    train_simple_flow()
+    train_complex_trans()
+    # train_simple_flow()
