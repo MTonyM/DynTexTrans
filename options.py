@@ -60,3 +60,4 @@ class TrainOptions(Options):
                                  help='dropout rate of resblock in one hg reslist1.')
         self.parser.add_argument('--temperature', type=float, default=0.1,
                                  help='temperature.')
+        self.parser.add_argument('--log_dir', type=str, default='.', help='tensorboard file.')
