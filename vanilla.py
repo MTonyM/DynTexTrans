@@ -21,6 +21,7 @@ from dataloader import DynTexFigureTrainDataset, DynTexFigureTransTrainDataset
 from nnf import NNFPredictor, Synthesiser
 from options import TrainOptions
 from vis import Table
+from tensorboardX import SummaryWriter
 
 
 def train_simple_trans():
@@ -198,8 +199,7 @@ def train_simple_flow():
 def train_complex_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
-    train_params = {'lr': 0.01, 'epoch_milestones': (100, 500)}
-    # dataset = DynTexFigureTrainDataset(data_root, 'flame')
+    train_params = {'lr': 0.01, 'epoch_milestones': (50, 100, 200, 500)}
     dataset = DynTexFigureTransTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
@@ -210,9 +210,10 @@ def train_complex_trans():
         syner = syner.cuda()
         nnfer = nnfer.cuda()
         flownet = flownet.cuda()
-    optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'])
-    optimizer_flow = Adam(flownet.parameters(), lr=train_params['lr'] * 0.1)
+    optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'] * 0.5, weight_decay=0.5)
+    optimizer_flow = Adam(flownet.parameters(), lr=train_params['lr'] * 0.1, weight_decay=0.5)
     table = Table()
+    writer = SummaryWriter(log_dir=opt.log_dir)
     for epoch in range(opt.epoch):
         pbar = tqdm(total=len(dataloader), desc='epoch#{}'.format(epoch))
         pbar.set_postfix({'loss': 'N/A'})
@@ -288,9 +289,11 @@ def train_complex_trans():
                 table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace(
                     '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
+            writer.add_scalar('loss_train', float(loss), i + int(epoch*ceil(len(dataloader)/opt.batchsize)))
             pbar.update(1)
         table.build_html('data/')
         pbar.close()
+    writer.close()
 
 
 if __name__ == '__main__':
