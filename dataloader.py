@@ -99,7 +99,7 @@ class DynTexFigureTrainDataset(Dataset):
         return len(self.data_list) - 1
 
     def __getitem__(self, item):
-        idx = item + np.random.randint(0, self.length) % self.length
+        idx = (item + np.random.randint(0, self.length)) % self.length
         path1 = self.data_list[item]
         path2 = self.data_list[idx]
         patht1 = self.data_figure_list[item]
