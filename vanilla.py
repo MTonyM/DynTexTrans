@@ -198,7 +198,7 @@ def train_simple_flow():
 def train_complex_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
-    train_params = {'lr': 0.001, 'epoch_milestones': (100, 500)}
+    train_params = {'lr': 0.01, 'epoch_milestones': (100, 500)}
     # dataset = DynTexNNFTrainDataset(data_root, 'flame')
     dataset = DynTexFigureTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
@@ -211,6 +211,7 @@ def train_complex_trans():
         nnfer = nnfer.cuda()
         flownet = flownet.cuda()
     optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'])
+    optimizer_flow = Adam(flownet.parameters(), lr=train_params['lr'] * 0.1)
     table = Table()
     for epoch in range(opt.epoch):
         pbar = tqdm(total=len(dataloader), desc='epoch#{}'.format(epoch))
@@ -234,14 +235,18 @@ def train_complex_trans():
             source_t1_predict = syner(source_t, flow)  # flow penalty
             target_flow = syner(flow, nnf)  # predict flow
             target_t1_predict = syner(target_t, target_flow)
+            # target_t1_predict = syner(source_t1, nnf)
 
             loss_t1_f = tnf.mse_loss(source_t1, source_t1_predict)  # flow penalty
             loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)  # total penalty
-            loss = loss_t1_f + loss_t1
+            loss_t_nnf = 0
+            loss = loss_t1_f + loss_t1 + loss_t_nnf
 
+            optimizer_flow.zero_grad()
             optimizer_nnfer.zero_grad()
             loss.backward()
             optimizer_nnfer.step()
+            optimizer_flow.step()
             loss_tot += float(loss)
 
             # ---   vis    ---
