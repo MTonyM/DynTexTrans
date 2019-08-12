@@ -200,7 +200,7 @@ def train_simple_flow():
 def train_complex_trans():
     opt = TrainOptions().parse()
     data_root = 'data/processed'
-    train_params = {'lr': 0.01, 'epoch_milestones': (100, 500)}
+    train_params = {'lr': 0.001, 'epoch_milestones': (100, 500)}
     dataset = DynTexFigureTransTrainDataset(data_root, 'flame')
     dataloader = DataLoader(dataset=dataset, batch_size=opt.batchsize, num_workers=opt.num_workers, shuffle=True)
     nnf_conf = 3
@@ -213,17 +213,17 @@ def train_complex_trans():
         flownet = flownet.cuda()
     optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'])
     optimizer_flow = Adam(flownet.parameters(), lr=train_params['lr'] * 0.1)
-    scheduler_nnfer = lr_scheduler.ExponentialLR(optimizer_nnfer, gamma=0.95)
-    scheduler_flow = lr_scheduler.ExponentialLR(optimizer_flow, gamma=0.95)
+    scheduler_nnfer = lr_scheduler.ExponentialLR(optimizer_nnfer, gamma=0.995)
+    scheduler_flow = lr_scheduler.ExponentialLR(optimizer_flow, gamma=0.995)
     table = Table()
     writer = SummaryWriter(log_dir=opt.log_dir)
     for epoch in range(opt.epoch):
+        scheduler_flow.step()
+        scheduler_nnfer.step()
         pbar = tqdm(total=len(dataloader), desc='epoch#{}'.format(epoch))
         pbar.set_postfix({'loss': 'N/A'})
         loss_tot = 0.0
         for i, (source_t, target_t, source_t1, target_t1) in enumerate(dataloader):
-            scheduler_flow.step()
-            scheduler_nnfer.step()
             if torch.cuda.is_available():
                 source_t = Variable(source_t, requires_grad=True).cuda()
                 target_t = Variable(target_t, requires_grad=True).cuda()
