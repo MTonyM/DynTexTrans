@@ -213,8 +213,10 @@ def train_complex_trans():
         flownet = flownet.cuda()
     optimizer_nnfer = Adam(nnfer.parameters(), lr=train_params['lr'])
     optimizer_flow = Adam(flownet.parameters(), lr=train_params['lr'] * 0.1)
-    scheduler_nnfer = lr_scheduler.ExponentialLR(optimizer_nnfer, gamma=0.995)
-    scheduler_flow = lr_scheduler.ExponentialLR(optimizer_flow, gamma=0.995)
+    scheduler_nnfer = lr_scheduler.MultiStepLR(optimizer_nnfer, gamma=0.1, last_epoch=-1,
+                                               milestones=train_params['epoch_milestones'])
+    scheduler_flow = lr_scheduler.MultiStepLR(optimizer_flow, gamma=0.1, last_epoch=-1,
+                                              milestones=train_params['epoch_milestones'])
     table = Table()
     writer = SummaryWriter(log_dir=opt.log_dir)
     for epoch in range(opt.epoch):
@@ -244,8 +246,7 @@ def train_complex_trans():
 
             loss_t1_f = tnf.mse_loss(source_t1, source_t1_predict)  # flow penalty
             loss_t1 = tnf.mse_loss(target_t1_predict, target_t1)  # total penalty
-            loss_t_nnf = 0
-            loss = loss_t1_f + loss_t1 + loss_t_nnf
+            loss = loss_t1_f + loss_t1 * 2
 
             optimizer_flow.zero_grad()
             optimizer_nnfer.zero_grad()
@@ -293,7 +294,9 @@ def train_complex_trans():
                 table.add(index, os.path.abspath(name.replace('.png', '_p1.png')).replace(
                     '/mnt/cephfs_hl/lab_ad_idea/maoyiming', ''))
             pbar.set_postfix({'loss': str(loss_tot / (i + 1))})
-            writer.add_scalar('scalars/loss_train/{}'.format(opt.time), float(loss),
+            writer.add_scalar('scalars/{}/loss_train'.format(opt.time), float(loss),
+                              i + int(epoch * len(dataloader)))
+            writer.add_scalar('scalars/{}/lr'.format(opt.time), float(scheduler_nnfer.get_lr()[0]),
                               i + int(epoch * len(dataloader)))
             pbar.update(1)
         table.build_html('data/')
